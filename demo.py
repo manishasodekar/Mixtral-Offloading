@@ -3,7 +3,7 @@ from transformers import AutoConfig, AutoTokenizer, TextStreamer
 import torch
 from constants import model_name
 from build_model_state import model, device
-from fastapi import FastAPI
+from fastapi import FastAPI, WebSocket
 from pydantic import BaseModel
 
 tokenizer = AutoTokenizer.from_pretrained(model_name)
@@ -55,3 +55,47 @@ async def chat(input: ChatInput):
     decoded_text = tokenizer.decode(sequence[0], skip_special_tokens=True)
     token_count = len(sequence[0])
     return ChatOutput(text=decoded_text, response=token_count)
+
+
+@app.websocket("/livechat")
+async def websocket_endpoint(websocket: WebSocket):
+    await websocket.accept()
+    past_key_values = None
+    while True:
+        try:
+            # Receive the user's input from the client
+            user_input = await websocket.receive_text()
+
+            # Prepare the input for the model
+            user_entry = dict(role="user", content=user_input)
+            input_ids = tokenizer.apply_chat_template([user_entry], return_tensors="pt").to(device)
+            attention_mask = torch.ones_like(input_ids)
+
+            # Generate the response token-by-token and stream it
+            result = model.generate(
+                input_ids=input_ids,
+                attention_mask=attention_mask,
+                past_key_values=past_key_values,
+                streamer=streamer,
+                do_sample=True,
+                temperature=1,
+                top_p=0.9,
+                max_new_tokens=100,
+                pad_token_id=tokenizer.eos_token_id,
+                return_dict_in_generate=True,
+                output_hidden_states=True,
+            )
+
+            # Extract sequences and past_key_values for subsequent turns
+            sequence = result["sequences"]
+            past_key_values = result["past_key_values"]
+
+            # Stream each token as it's generated
+            generated_text = tokenizer.decode(sequence[0], skip_special_tokens=True)
+            for token in generated_text.split():
+                await websocket.send_text(token)
+
+        except Exception as e:
+            print(f"Error: {e}")
+            await websocket.close()
+            break
