@@ -1,3 +1,4 @@
+import asyncio
 import re
 
 from constants import state_path, model_name, quantized_model_name
@@ -28,16 +29,17 @@ class WebSocketStreamer(TextIteratorStreamer):
     def __init__(self, tokenizer, websocket, skip_prompt=True, timeout=None, **decode_kwargs):
         super().__init__(tokenizer, skip_prompt=skip_prompt, timeout=timeout, **decode_kwargs)
         self.websocket = websocket
+        self.loop = asyncio.get_event_loop()
 
     async def on_finalized_text(self, text: str, stream_end: bool = False):
         """Send the entire text to the WebSocket."""
         try:
             print("websocket text ::", text)
             await self.websocket.send_text(text)  # Send entire text to the WebSocket client
+            if stream_end:
+                await self.websocket.send_text("[END]")  # Signal the end of the stream
         except Exception as e:
             print(f"Error sending text: {e}")
-        if stream_end:
-            await self.websocket.send_text("[END]")
 
 
 @app.post("/chat", response_model=ChatOutput)
