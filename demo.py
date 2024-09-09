@@ -1,7 +1,7 @@
 import re
 
 from constants import state_path, model_name, quantized_model_name
-from transformers import AutoConfig, AutoTokenizer, TextStreamer
+from transformers import AutoConfig, AutoTokenizer, TextStreamer, TextIteratorStreamer
 import torch
 from build_model_state import model, device
 from fastapi import FastAPI, WebSocket
@@ -24,18 +24,20 @@ class ChatOutput(BaseModel):
     response: int
 
 
-class WebSocketStreamer(TextStreamer):
-    def __init__(self, tokenizer, websocket, skip_prompt=True, skip_special_tokens=True):
-        super().__init__(tokenizer, skip_prompt=skip_prompt, skip_special_tokens=skip_special_tokens)
+class WebSocketStreamer(TextIteratorStreamer):
+    def __init__(self, tokenizer, websocket, skip_prompt=True, timeout=None, **decode_kwargs):
+        super().__init__(tokenizer, skip_prompt=skip_prompt, timeout=timeout, **decode_kwargs)
         self.websocket = websocket
 
-    async def on_token(self, token):
-        """Override the on_token method to send the token to WebSocket."""
+    async def on_finalized_text(self, text: str, stream_end: bool = False):
+        """Send the entire text to the WebSocket."""
         try:
-            await self.websocket.send_text(token)  # Send token to the websocket client
-            print(f"Sent token: {token}")  # Debug statement
+            print("websocket text ::", text)
+            await self.websocket.send_text(text)  # Send entire text to the WebSocket client
         except Exception as e:
-            print(f"Error sending token: {e}")
+            print(f"Error sending text: {e}")
+        if stream_end:
+            await self.websocket.send_text("[END]")
 
 
 @app.post("/chat", response_model=ChatOutput)
@@ -82,7 +84,7 @@ async def websocket_endpoint(websocket: WebSocket):
 
             user_input_ids = tokenizer(user_input, return_tensors="pt").input_ids
             user_input_length = user_input_ids.size(1)
-            max_new_tokens = max(user_input_length * 2, 256)
+            max_new_tokens = max(user_input_length * 2, 150)
 
             attention_mask = torch.ones_like(input_ids)
 

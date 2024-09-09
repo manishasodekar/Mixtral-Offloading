@@ -26,6 +26,13 @@
         }, 1000);
     };
 
+    // Function to handle WebSocket disconnection
+    const handleWebSocketClose = () => {
+        // Post a "session expired" message when the WebSocket is closed
+        messages = [...messages, { sender: "System", text: "Session expired." }];
+        scrollToBottom(); // Scroll down after posting the message
+    };
+
     const connectWebSocket = () => {
         ws = new WebSocket("wss://fluidstack-3090-1.healiom-service.com/mixtral/livechat");
 
@@ -36,7 +43,15 @@
 
         ws.onclose = () => {
             console.log("Connection closed");
+            handleWebSocketClose();
         };
+
+        // Close WebSocket after 10 minutes (600,000 milliseconds)
+        setTimeout(() => {
+            if (ws.readyState === WebSocket.OPEN) {
+                ws.close();
+            }
+        }, 600000); // 10 minutes
     };
 
     const sendMessage = () => {
@@ -46,8 +61,11 @@
             scrollToBottom(); // Scroll down after adding new message
 
             // Send the message via WebSocket
-            if (ws) {
+            if (ws && ws.readyState === WebSocket.OPEN) {
                 ws.send(message);
+            } else {
+                messages = [...messages, { sender: "System", text: "Cannot send message, session expired." }];
+                scrollToBottom(); // Scroll down if sending fails
             }
 
             // Clear the input field
@@ -66,7 +84,7 @@
 
         <div id="chat-window" bind:this={chatWindow}>
             {#each messages as msg}
-                <div class={msg.sender === 'User' ? 'user-message' : 'mixtral-message'}>
+                <div class={msg.sender === 'User' ? 'user-message' : (msg.sender === 'Mixtral' ? 'mixtral-message' : 'system-message')}>
                     <!-- Using {@html} to safely render multiline text -->
                     <p><strong>{msg.sender}: </strong><span>{@html msg.text}</span></p>
                 </div>
@@ -166,22 +184,27 @@
         margin-bottom: 10px;
     }
 
-    .user-message p {
+    .system-message {
+        text-align: center;
+        margin-bottom: 10px;
+        color: red;
+        font-style: italic;
+    }
+
+    .user-message p, .mixtral-message p {
         display: inline-block;
-        background-color: #dcf8c6;
         padding: 10px;
         border-radius: 10px;
         max-width: 80%;
         word-wrap: break-word;
     }
 
+    .user-message p {
+        background-color: #dcf8c6;
+    }
+
     .mixtral-message p {
-        display: inline-block;
         background-color: #fff;
-        padding: 10px;
-        border-radius: 10px;
-        max-width: 80%;
-        word-wrap: break-word;
     }
 
     #chat-window::-webkit-scrollbar {
