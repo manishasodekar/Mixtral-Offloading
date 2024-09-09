@@ -104,6 +104,7 @@ async def websocket_endpoint(websocket: WebSocket):
             past_key_values = result.get("past_key_values", None)
 
             generated_text = tokenizer.decode(sequence[0], skip_special_tokens=True)
+            await websocket.send_text(generated_text)
             assistant_entry = dict(role="assistant", content=generated_text.strip())
             chat_history.append(assistant_entry)
 
