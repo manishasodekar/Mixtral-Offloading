@@ -65,7 +65,7 @@ async def websocket_endpoint(websocket: WebSocket):
         try:
             # Receive the user's input from the client
             user_input = await websocket.receive_text()
-
+            print("user_input", user_input)
             # Prepare the input for the model
             user_entry = dict(role="user", content=user_input)
             input_ids = tokenizer.apply_chat_template([user_entry], return_tensors="pt").to(device)
