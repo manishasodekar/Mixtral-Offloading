@@ -1,4 +1,3 @@
-import asyncio
 import re
 
 from constants import state_path, model_name, quantized_model_name
@@ -23,23 +22,6 @@ class ChatInput(BaseModel):
 class ChatOutput(BaseModel):
     text: str
     response: int
-
-
-class WebSocketStreamer(TextIteratorStreamer):
-    def __init__(self, tokenizer, websocket, skip_prompt=True, timeout=None, **decode_kwargs):
-        super().__init__(tokenizer, skip_prompt=skip_prompt, timeout=timeout, **decode_kwargs)
-        self.websocket = websocket
-        self.loop = asyncio.get_event_loop()
-
-    async def on_finalized_text(self, text: str, stream_end: bool = False):
-        """Send the entire text to the WebSocket."""
-        try:
-            print("websocket text ::", text)
-            await self.websocket.send_text(text)  # Send entire text to the WebSocket client
-            if stream_end:
-                await self.websocket.send_text("[END]")  # Signal the end of the stream
-        except Exception as e:
-            print(f"Error sending text: {e}")
 
 
 @app.post("/chat", response_model=ChatOutput)
@@ -75,6 +57,7 @@ async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
     chat_history = []
     past_key_values = None
+
     while True:
         try:
             user_input = await websocket.receive_text()
@@ -83,15 +66,14 @@ async def websocket_endpoint(websocket: WebSocket):
             chat_history.append(user_entry)
 
             input_ids = tokenizer.apply_chat_template(chat_history, return_tensors="pt").to(device)
-
             user_input_ids = tokenizer(user_input, return_tensors="pt").input_ids
             user_input_length = user_input_ids.size(1)
             max_new_tokens = max(user_input_length * 2, 150)
 
             attention_mask = torch.ones_like(input_ids)
 
-            # Initialize the WebSocketStreamer
-            streamer = WebSocketStreamer(tokenizer, websocket)
+            # Initialize the TextIteratorStreamer
+            streamer = TextIteratorStreamer(tokenizer, skip_prompt=False, skip_special_tokens=True)
 
             result = model.generate(
                 input_ids=input_ids,
@@ -107,13 +89,13 @@ async def websocket_endpoint(websocket: WebSocket):
                 output_hidden_states=True,
             )
 
-            sequence = result["sequences"]
-            past_key_values = result.get("past_key_values", None)
+            # Stream results and send to WebSocket
+            async for new_text in streamer:
+                filtered_text = re.sub(r'\[INST\].*?\[/INST\]', '', new_text, flags=re.DOTALL).strip()
+                await websocket.send_text(filtered_text)
+                print(f"Sent to WebSocket: {filtered_text}")
 
-            generated_text = tokenizer.decode(sequence[0], skip_special_tokens=True)
-            filtered_text = re.sub(r'\[INST\].*?\[/INST\]', '', generated_text, flags=re.DOTALL).strip()
-            await websocket.send_text(filtered_text)
-            assistant_entry = dict(role="assistant", content=generated_text.strip())
+            assistant_entry = dict(role="assistant", content=new_text.strip())
             chat_history.append(assistant_entry)
 
         except Exception as e:
