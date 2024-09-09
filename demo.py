@@ -2,7 +2,7 @@ from constants import state_path, model_name, quantized_model_name
 from transformers import AutoConfig, AutoTokenizer, TextStreamer
 import torch
 from constants import model_name
-from build_model_state import model
+from build_model_state import model, device
 from fastapi import FastAPI
 from pydantic import BaseModel
 
