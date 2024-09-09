@@ -62,7 +62,8 @@ async def chat(input: ChatInput):
     sequence = result["sequences"]
     decoded_text = tokenizer.decode(sequence[0], skip_special_tokens=True)
     token_count = len(sequence[0])
-    return ChatOutput(text=decoded_text, response=token_count)
+    filtered_text = re.sub(r'\[INST\].*?\[/INST\]', '', decoded_text, flags=re.DOTALL).strip()
+    return ChatOutput(text=filtered_text, response=token_count)
 
 
 @app.websocket("/livechat")
