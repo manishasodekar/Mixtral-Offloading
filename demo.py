@@ -23,20 +23,6 @@ class ChatOutput(BaseModel):
     response: int
 
 
-class WebSocketTextStreamer(TextStreamer):
-    def __init__(self, tokenizer, websocket, skip_prompt=False, **decode_kwargs):
-        super().__init__(tokenizer, skip_prompt, **decode_kwargs)
-        self.websocket = websocket  # WebSocket connection
-
-    async def on_finalized_text(self, text: str, stream_end: bool = False):
-        """Sends the new text to WebSocket instead of printing."""
-        # Send the text to the WebSocket connection
-        await self.websocket.send(text)
-
-        # Optionally, handle the stream end condition (e.g., close WebSocket)
-        if stream_end:
-            await self.websocket.close()
-
 
 @app.post("/chat", response_model=ChatOutput)
 async def chat(input: ChatInput):
@@ -87,8 +73,8 @@ async def websocket_endpoint(websocket: WebSocket):
             attention_mask = torch.ones_like(input_ids)
 
             # Initialize the WebSocketStreamer
-            # streamer = TextStreamer(tokenizer, skip_prompt=True, skip_special_tokens=True)
-            streamer = WebSocketTextStreamer(tokenizer, websocket)
+            streamer = TextStreamer(tokenizer, skip_prompt=True, skip_special_tokens=True)
+            # streamer = WebSocketTextStreamer(tokenizer, websocket)
 
             result = model.generate(
                 input_ids=input_ids,
