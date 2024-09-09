@@ -8,14 +8,14 @@ a Svelte-based chat UI.
 To interact with the Mixtral API, you can use `curl` to send a POST request. Below is an example of how to make an API
 call:
 
-    ```bash
+```bash
     curl --location --request POST 'https://fluidstack-3090-1.healiom-service.com/mixtral/chat' \
     --header 'Content-Type: application/json' \
     --data '{
         "user_input": "Write the recipe for a chicken curry with coconut milk.",
         "output_len": 100
     }'
-    ```
+```
 
 
 ## Chat UI
