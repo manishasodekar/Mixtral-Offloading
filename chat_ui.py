@@ -19,26 +19,26 @@ if 'connected' not in st.session_state:
 user_input = st.text_input("You: ", "")
 
 
-async def start_connection():
-    if st.session_state['websocket'] is None or not st.session_state['connected']:
-        try:
-            st.session_state['websocket'] = await websockets.connect(WS_URL)
-            st.session_state['connected'] = True
-            st.session_state['history'].append("Connected to the WebSocket.")
-        except Exception as e:
-            st.session_state['history'].append(f"Connection failed: {e}")
-            st.session_state['connected'] = False
+async def connect_to_websocket():
+    try:
+        websocket = await websockets.connect(WS_URL)
+        st.session_state['websocket'] = websocket
+        st.session_state['connected'] = True
+        st.session_state['history'].append("Connected to the WebSocket.")
+    except Exception as e:
+        st.session_state['history'].append(f"Connection failed: {e}")
+        st.session_state['connected'] = False
 
 
-async def close_connection():
-    if st.session_state['websocket'] is not None:
+async def disconnect_websocket():
+    if st.session_state['websocket']:
         await st.session_state['websocket'].close()
         st.session_state['connected'] = False
         st.session_state['history'].append("Disconnected from the WebSocket.")
         st.session_state['websocket'] = None
 
 
-async def send_message():
+async def send_and_receive_message():
     if st.session_state['connected']:
         try:
             # Send user input to the server
@@ -47,32 +47,26 @@ async def send_message():
             # Receive tokens and stream them in real-time
             async for message in st.session_state['websocket']:
                 st.session_state['history'].append(f"Mixtral: {message}")
-                # Use st.experimental_rerun() carefully to avoid performance issues
-                st.experimental_rerun()
-
+                st.experimental_rerun()  # Update the UI with new messages
         except Exception as e:
             st.session_state['history'].append(f"Error during communication: {e}")
-            await close_connection()
+            await disconnect_websocket()
 
 
-# Start chat button
+# Button to initiate WebSocket connection
 if st.button("Start Chat") and not st.session_state['connected']:
-    # Create an asyncio task to run the start_connection function
-    asyncio.create_task(start_connection())
+    asyncio.run(connect_to_websocket())
 
-# Send button
+# Button to send the user message
 if st.session_state['connected'] and user_input:
     if st.button("Send"):
-        # Append user input to chat history
         st.session_state['history'].append(f"You: {user_input}")
-        # Create an asyncio task to run the send_message function
-        asyncio.create_task(send_message())
+        asyncio.run(send_and_receive_message())
 
-# End chat button
+# Button to close WebSocket connection
 if st.session_state['connected']:
     if st.button("End Chat"):
-        # Create an asyncio task to run the close_connection function
-        asyncio.create_task(close_connection())
+        asyncio.run(disconnect_websocket())
 
 # Display chat history
 for message in st.session_state['history']:
