@@ -1,3 +1,5 @@
+import re
+
 from constants import state_path, model_name, quantized_model_name
 from transformers import AutoConfig, AutoTokenizer, TextStreamer
 import torch
@@ -104,7 +106,8 @@ async def websocket_endpoint(websocket: WebSocket):
             past_key_values = result.get("past_key_values", None)
 
             generated_text = tokenizer.decode(sequence[0], skip_special_tokens=True)
-            await websocket.send_text(generated_text)
+            filtered_text = re.sub(r'\[INST\].*?\[/INST\]', '', generated_text, flags=re.DOTALL).strip()
+            await websocket.send_text(filtered_text)
             assistant_entry = dict(role="assistant", content=generated_text.strip())
             chat_history.append(assistant_entry)
 
