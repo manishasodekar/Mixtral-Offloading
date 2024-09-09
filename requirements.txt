@@ -1,0 +1,11 @@
+fastapi==0.46.0
+uvicorn==0.11.1
+pytest==5.3.2
+requests==2.22.0
+gunicorn[uvicorn]
+triton
+transformers
+torch>=2.1.0
+git+https://github.com/mobiusml/hqq.git@37502bea31f2969c6680c0c4a88ca74b3bb234a5
+numpy==1.24.4
+tqdm==4.66.1
