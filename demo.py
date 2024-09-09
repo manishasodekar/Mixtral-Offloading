@@ -67,6 +67,7 @@ async def chat(input: ChatInput):
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
     chat_history = []
+    past_key_values = None
     while True:
         try:
             user_input = await websocket.receive_text()
