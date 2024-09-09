@@ -21,6 +21,7 @@ class ChatInput(BaseModel):
 
 
 class ChatOutput(BaseModel):
+    text: str
     response: int
 
 
@@ -51,6 +52,6 @@ async def chat(input: ChatInput):
     )
 
     sequence = result["sequences"]
-    # decoded_text = tokenizer.decode(sequence[0], skip_special_tokens=True)
+    decoded_text = tokenizer.decode(sequence[0], skip_special_tokens=True)
     token_count = len(sequence[0])
-    return ChatOutput(response=token_count)
+    return ChatOutput(text=decoded_text, response=token_count)
