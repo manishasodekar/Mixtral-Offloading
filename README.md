@@ -9,7 +9,7 @@ To interact with the Mixtral API, you can use `curl` to send a POST request. Bel
 call:
 
 ```bash
-    curl --location --request POST 'https://fluidstack-3090-1.healiom-service.com/mixtral/chat' \
+    curl --location --request POST 'https://localhost:8080/mixtral/chat' \
     --header 'Content-Type: application/json' \
     --data '{
         "user_input": "Write the recipe for a chicken curry with coconut milk.",
