@@ -68,7 +68,7 @@ async def websocket_endpoint(websocket: WebSocket):
 
             user_input_ids = tokenizer(user_input, return_tensors="pt").input_ids
             user_input_length = user_input_ids.size(1)
-            max_new_tokens = max(user_input_length * 2, 150)
+            max_new_tokens = max(user_input_length * 2, 256)
 
             attention_mask = torch.ones_like(input_ids)
 
